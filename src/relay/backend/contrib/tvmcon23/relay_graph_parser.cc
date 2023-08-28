@@ -9,7 +9,6 @@
 
 #include "relay_graph_parser.h"
 
-#include <tvm/ir/error.h>
 #include <tvm/relay/attrs/nn.h>
 
 namespace tvm {
