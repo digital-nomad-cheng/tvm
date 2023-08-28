@@ -14,17 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# pylint: disable=wildcard-import
-"""Contrib modules."""
-from .register import get_pattern_table, register_pattern_table
 
-from .arm_compute_lib import *
-from .dnnl import *
-from .bnns import *
-from .coreml import *
-from .ethosn import *
-from .libtorch import *
-from .tensorrt import *
-from .cutlass import *
-from .clml import *
-from .tvmcon23 import *
+if(USE_TVMCON23_CODEGEN STREQUAL "ON")
+		tvm_file_glob(GLOB TVMCON23_RELAY_CONTRIB_SRC src/relay/backend/contrib/tvmcon23/*)
+		list(APPEND COMPILER_SRCS ${TVMCON23_RELAY_CONTRIB_SRC})
+		tvm_file_glob(GLOB TVMCON23_CONTRIB_SRC src/runtime/contrib/tvmcon23/tvmcon23_runtime.cc src/runtime/contrib/tvmcon23/tvmcon23_runtime.h)
+		list(APPEND RUNTIME_SRCS ${TVMCON23_CONTRIB_SRC})
+endif()
+	
+	
+
+
+
