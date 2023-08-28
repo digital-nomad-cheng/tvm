@@ -32,13 +32,16 @@ class TVMCON23Runtime : public ModuleNode {
    * \param sptr_to_self The pointer to the module node.
    * \return The packed function.
    */
-  PackedFunc GetFunction(const std::string& name, const ObjectPtr<Object>& sptr_to_self);
+  PackedFunc GetFunction(const tvm::runtime::String& name, const ObjectPtr<Object>& sptr_to_self) override;
 
   /*!
    * \brief Get the type key of the TVMCON23 runtime.
    * \return The type key.
    */
-  const char* type_key() const { return "tvmcon23"; }
+  const char* type_key() const override { return "tvmcon23"; }
+
+  /*! \brief Get the property of the runtime module .*/
+  int GetPropertyMask() const final { return ModulePropertyMask::kBinarySerializable | ModulePropertyMask::kRunnable; };
 
   /*!
    * \brief Save the TVMCON23 runtime to a binary stream.

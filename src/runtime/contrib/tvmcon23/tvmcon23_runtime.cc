@@ -29,7 +29,7 @@ TVMCON23Runtime::TVMCON23Runtime(const std::string& symbol_name, const std::stri
   float a = 0;
 }
 
-PackedFunc TVMCON23Runtime::GetFunction(const std::string& name,
+PackedFunc TVMCON23Runtime::GetFunction(const String& name,
                                     const ObjectPtr<Object>& sptr_to_self) {
   if (name == "get_symbol") {
     return PackedFunc(
