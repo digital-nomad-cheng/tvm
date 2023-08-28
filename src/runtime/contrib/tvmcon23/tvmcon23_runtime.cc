@@ -17,7 +17,6 @@
 
 namespace tvm {
 namespace runtime {
-namespace contrib {
 
 TVMCON23Runtime::~TVMCON23Runtime() {
   // Release your devices resources
@@ -27,6 +26,7 @@ TVMCON23Runtime::TVMCON23Runtime(const std::string& symbol_name, const std::stri
     : const_names_(const_names),
     processed_subgraph_(processed_subgraph),
     symbol_name_(symbol_name) {
+  float a = 0;
 }
 
 PackedFunc TVMCON23Runtime::GetFunction(const std::string& name,
@@ -124,6 +124,5 @@ runtime::Module TVMCON23RuntimeCreate(String symbol_name, String processed_subgr
 
 TVM_REGISTER_GLOBAL("runtime.TVMCON23RuntimeCreate").set_body_typed(TVMCON23RuntimeCreate);
 
-}  // namespace contrib
 }  // namespace runtime
 }  // namespace tvm

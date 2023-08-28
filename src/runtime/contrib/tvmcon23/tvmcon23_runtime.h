@@ -1,13 +1,14 @@
 #ifndef TVM_RUNTIME_CONTRIB_TVMCON23_TVMCON23_RUNTIME_H_
 #define TVM_RUNTIME_CONTRIB_TVMCON23_TVMCON23_RUNTIME_H_
 
-#include <tvm/runtime/module.h>
+#include <dlpack/dlpack.h>
+#include <tvm/runtime/ndarray.h>
+#include <tvm/runtime/packed_func.h>
 
 #include <string>
 
 namespace tvm {
 namespace runtime {
-namespace contrib {
 
 /*!
  * \brief TVMCON23 runtime for executing TVMCON23 models.
@@ -31,13 +32,13 @@ class TVMCON23Runtime : public ModuleNode {
    * \param sptr_to_self The pointer to the module node.
    * \return The packed function.
    */
-  PackedFunc GetFunction(const std::string& name, const ObjectPtr<Object>& sptr_to_self) override;
+  PackedFunc GetFunction(const std::string& name, const ObjectPtr<Object>& sptr_to_self);
 
   /*!
    * \brief Get the type key of the TVMCON23 runtime.
    * \return The type key.
    */
-  const char* type_key() const override { return "tvmcon23"; }
+  const char* type_key() const { return "tvmcon23"; }
 
   /*!
    * \brief Save the TVMCON23 runtime to a binary stream.
@@ -82,7 +83,6 @@ class TVMCON23Runtime : public ModuleNode {
   std::vector<const DLTensor*> data_entry_;
 };
 
-}  // namespace contrib
 }  // namespace runtime
 }  // namespace tvm
 
