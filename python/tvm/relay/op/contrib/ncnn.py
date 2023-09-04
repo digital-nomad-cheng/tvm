@@ -31,7 +31,7 @@ def _register_extern_op_helper(op_name, supported=True):
         A function that returns if the operator is supported by ncnn.
     """
 
-    @tvm.ir.register_op_attr(op_name, "target.ncnn"):
+    @tvm.ir.register_op_attr(op_name, "target.ncnn")
     def _func_wrapped(expr):
         return supported
 
