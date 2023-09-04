@@ -120,8 +120,8 @@ runtime::Module NCNNCompiler(const ObjectRef& ref) {
   std::string graph_json = serializer.GetJSON();
   
   // Generate runtime library 
-  const auto* pf = runtime::Registry::Get("runtime.ncnn_create");
-  ICHECK(pf != nullptr) << "Cannot find JSON runtime module to create";
+  const auto* pf = runtime::Registry::Get("runtime.NCNNRuntimeCreate");
+  ICHECK(pf != nullptr) << "Cannot find ncnn JSON runtime module to create";
   runtime::Module lib = (*pf)(func_name, graph_json, serializer.const_names());
 
   return lib;

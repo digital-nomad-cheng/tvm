@@ -49,7 +49,7 @@ public:
   
   /*!
    * \brief The type key of the mdoule.
-* 
+   * 
    * \ return module type key
    */ 
   const char* type_key() const override { return "ncnn"; }
@@ -76,7 +76,7 @@ runtime::Module NCNNRuntimeCreate(const String& symbol_name, const String& graph
   return runtime::Module(n);
 }
 
-TVM_REGISTER_GLOBAL("runtime.ncnn_create").set_body_typed(NCNNRuntimeCreate);
+TVM_REGISTER_GLOBAL("runtime.NCNNRuntimeCreate").set_body_typed(NCNNRuntimeCreate);
 TVM_REGISTER_GLOBAL("runtime.module.loadbinary_ncnn")
   .set_body_typed(JSONRuntimeBase::LoadFromBinary<NCNNRuntime>);
 }
