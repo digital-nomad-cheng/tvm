@@ -28,6 +28,8 @@
 #include "../json/json_node.h"
 #include "../json/json_runtime.h"
 
+#include "ncnn/net.h"
+
 namespace tvm {
 namespace runtime {
 namespace contrib {

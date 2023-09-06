@@ -20,6 +20,21 @@ if(USE_NCNN_CODEGEN STREQUAL "ON")
 		list(APPEND COMPILER_SRCS ${ncnn_RELAY_CONTRIB_SRC})
 		tvm_file_glob(GLOB ncnn_CONTRIB_SRC src/runtime/contrib/ncnn/ncnn_runtime.cc src/runtime/contrib/ncnn/ncnn_runtime.h)
 		list(APPEND RUNTIME_SRCS ${ncnn_CONTRIB_SRC})
+    
+    set(ncnn_PATH "/opt/ncnn/build/install")
+    tvm_file_glob(GLOB ncnn_CONTRIB_SRC src/runtime/contrib/ncnn/*)
+    set(ncnn_INCLUDE_DIRS ${ncnn_PATH}/include)
+    include_directories(${ncnn_INCLUDE_DIRS})
+    # message(STATUS "ncnn include:" ${ncnn_INCLUDE_DIRS})  
+    find_library(EXTERN_ncnn_LIB 
+      NAMES ncnn
+      HINTS "${ncnn_PATH}" "${ncnn_PATH}/lib"
+    )
+    
+    list(APPEND TVM_RUNTIME_LINKER_LIBS ${EXTERN_ncnn_LIB})
+
+    list(APPEND RUNTIME_SRCS ${ncnn_CONTRIB_SRC})
+    message(STATUS "Build with ncnn graph executor support...")
 endif()
 	
 	
