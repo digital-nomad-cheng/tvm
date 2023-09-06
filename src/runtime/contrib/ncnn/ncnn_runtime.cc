@@ -65,7 +65,9 @@ public:
   void Init(const Array<NDArray>& consts) override {
     ICHECK_EQ(consts.size(), const_idx_.size()) 
       << "The number of input constants must match the number of required.";
-    LOG(INFO) << "Initilize ncnn runtime engine"; 
+    LOG(INFO) << "Initilize ncnn runtime engine";
+    SetupConstants(consts);
+    BuildEngine();
   }
   
   void Run() override {
@@ -84,6 +86,78 @@ public:
     pretty_print(out1);
   }
 
+private:
+  /*!
+   * \brief Build ncnn layer from JSON representation and cache
+   * \note For the time being only one layer or operator is supported
+   * per engine
+   */
+  void BuildEngine() {
+    bool found_kernel_node = false;
+    for (size_t nid = 0; nid < nodes_.size(); ++nid) {
+      const auto& node = nodes_[nid];
+      if (found_kernel_node) {
+        LOG(FATAL) 
+          << "ncnn runtime module only supports one kernel node per function.";
+      }
+      if (node.GetOpType() == "kernel") {
+        found_kernel_node = true;
+        auto op_name = node.GetOpName();
+        if (op_name == "nn.dense") {
+          CreateInnerProductLayer(&layer_, node);
+        } else {
+          LOG(FATAL) << "Unsupported op: " << op_name;
+        }
+      }
+    }
+  }
+  
+  /*!
+   * \brief ncnn objects that we cache in order to avoid needing to construct 
+   * a new layer each time.
+   */
+  struct CachedLayer {
+    ncnn::Layer* op;
+    ncnn::Option opt;
+    ncnn::Mat in;
+    ncnn::Mat out;
+  };
+  
+  void CreateInnerProductLayer(CachedLayer* layer, const JSONGraphNode& node) {
+    ncnn::Layer* op = ncnn::create_layer("InnerProduct");
+    // collect inputs from json representation 
+    std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
+    size_t num_inputs= inputs.size();
+    LOG(INFO) << "num_inputs parsed from ncnn json: " << num_inputs;
+    bool has_bias;
+    ICHECK(num_inputs >= 2U && num_inputs <= 3U)
+      << "InnerProduct(dense) layer requires 3 inputs with a bias, 2 inputs without.";
+    has_bias = num_inputs == 3;
+    ncnn::Option opt;
+    opt.num_threads = 2; // TODO: how to get num threads to use from tvm
+    ncnn::ParamDict pd;
+    if (has_bias) {
+      pd.set(1, 1); // has bias
+    } else {
+      pd.set(1, 0); // has no bias
+    }
+    for (size_t i = 0; i < inputs.size(); i++) {
+      auto tensor = inputs[i];
+      JSONGraphNode node = nodes_[tensor.id_];
+      if (node.GetOpType() == "const") {
+        LOG(INFO) << i << "th node is " << "const/weight node";
+        void* node_data = nullptr;
+        int64_t* node_shape = nullptr;
+        node_shape = data_entry_[EntryID(tensor)]->shape;
+        LOG(INFO) << "shape of data is" << &node_shape;
+
+      }
+    }
+    // pd.set(2, ...) // TODO: set weight size
+    layer->op = op;
+    op->load_param(pd); // load param/model structure
+     
+  }
   void inner_product_lowlevel(const ncnn::Mat& rgb, ncnn::Mat& out, bool use_bias=false)
   {
       ncnn::Option opt;
@@ -147,6 +221,7 @@ public:
       }
   }
 
+  CachedLayer layer_;
 };
 
 runtime::Module NCNNRuntimeCreate(const String& symbol_name, const String& graph_json, 
