@@ -30,9 +30,9 @@ if(USE_NCNN_CODEGEN STREQUAL "ON")
       NAMES ncnn
       HINTS "${ncnn_PATH}" "${ncnn_PATH}/lib"
     )
-    
-    list(APPEND TVM_RUNTIME_LINKER_LIBS ${EXTERN_ncnn_LIB})
-
+    set(ncnn_DIR "/opt/ncnn/build/install/lib/cmake/ncnn")
+    find_package(ncnn REQUIRED) 
+    list(APPEND TVM_RUNTIME_LINKER_LIBS ncnn)# ${EXTERN_ncnn_LIB})
     list(APPEND RUNTIME_SRCS ${ncnn_CONTRIB_SRC})
     message(STATUS "Build with ncnn graph executor support...")
 endif()
