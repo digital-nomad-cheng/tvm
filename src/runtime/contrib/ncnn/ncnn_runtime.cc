@@ -72,19 +72,30 @@ public:
   
   void Run() override {
     LOG(INFO) << "Run ncnn runtime engine";
-    ncnn::Mat input(6);
-
+    for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
+      auto nid = input_nodes_[nid_idx];
+      if (nodes_[nid].GetOpType() == "input") {
+        for (uint32_t eid_idx = 0; eid_idx < nodes_[nid].GetNumOutput(); eid_idx++) {
+          uint32_t eid = EntryID(nid, eid_idx);
+          void* data = data_entry_[eid]->data;
+          LOG(INFO) << "data shape is " << *(data_entry_[eid]->shape+1);
+          LOG(INFO) << "ndim of data is" << data_entry_[eid]->ndim;
+        }
+      }
+    }
+    ncnn::Mat input(65536);
+    
     // fill random
     for (int i = 0; i < input.total(); i++)
     {
         input[i] = rand() % 10;
     }
     
-    ncnn::Mat out1;
+    // ncnn::Mat out1;
     // inner_product_lowlevel(input, out1);
-    layer_.op->forward(input, out1, layer_.opt);
+    layer_.op->forward(input, layer_.out, layer_.opt);
     printf("Use low level API...\n");
-    pretty_print(out1);
+    pretty_print(layer_.out);
   }
 
 private:
@@ -147,26 +158,28 @@ private:
       auto tensor = inputs[i];
       JSONGraphNode node = nodes_[tensor.id_];
       if (node.GetOpType() == "const") {
-        LOG(INFO) << i << " th node is " << "const/weight node";
+        LOG(INFO) << i+1 << " th node is " << "const/weight node";
         void* node_data = nullptr;
         node_data = data_entry_[EntryID(tensor)]->data;
-        int64_t node_shape = *(data_entry_[EntryID(tensor)]->shape);
-        // *node_shape is 10
-        LOG(INFO) << "shape of data is " << node_shape;
-        pd.set(0, (int)node_shape);
-        pd.set(2, (int)node_shape); // set weight size here
-        ncnn::Mat weights[1];
-        weights[0].create((int)node_shape);
-        float *temp_array = new float[node_shape];
-        LOG(INFO) << "begin memory copy";
-        memcpy(temp_array, node_data, sizeof(float)*(node_shape));
-        LOG(INFO) << "end memory copy";
-        for (size_t i = 0; i < node_shape; i++) {
-          weights[0][i] = temp_array[i];
-        }
-        void* a = nullptr;
         auto dim = data_entry_[EntryID(tensor)]->ndim;
         LOG(INFO) << "ndim of data is " << dim;
+        int64_t data_shape[dim];
+        int64_t data_size = 1;
+        for (size_t i = 0; i < dim; i++) {
+          data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
+          LOG(INFO) << "shape of data along dim "
+            << i << " is " << data_shape[i];
+          data_size *= data_shape[i];
+        }
+        // *node_shape is 10
+        pd.set(0, (int)data_shape[0]); // set output shape
+        pd.set(2, (int)data_size); // set weight size here
+        ncnn::Mat weights[1];
+        weights[0].create((int)data_size);
+        float* temp_array = static_cast<float *>(node_data);
+        for (size_t i = 0; i < data_size; i++) {
+          weights[0][i] = temp_array[i];
+        }
         auto stride = data_entry_[EntryID(tensor)]->strides;
         LOG(INFO) << "stride of data is " << stride;
         auto dtype = data_entry_[EntryID(tensor)]->dtype;
