@@ -81,7 +81,8 @@ public:
     }
     
     ncnn::Mat out1;
-    inner_product_lowlevel(input, out1);
+    // inner_product_lowlevel(input, out1);
+    layer_.op->forward(input, out1, layer_.opt);
     printf("Use low level API...\n");
     pretty_print(out1);
   }
@@ -141,22 +142,45 @@ private:
     } else {
       pd.set(1, 0); // has no bias
     }
+    // TODO map inputs to weights
     for (size_t i = 0; i < inputs.size(); i++) {
       auto tensor = inputs[i];
       JSONGraphNode node = nodes_[tensor.id_];
       if (node.GetOpType() == "const") {
-        LOG(INFO) << i << "th node is " << "const/weight node";
+        LOG(INFO) << i << " th node is " << "const/weight node";
         void* node_data = nullptr;
-        int64_t* node_shape = nullptr;
-        node_shape = data_entry_[EntryID(tensor)]->shape;
-        LOG(INFO) << "shape of data is" << &node_shape;
-
+        node_data = data_entry_[EntryID(tensor)]->data;
+        int64_t node_shape = *(data_entry_[EntryID(tensor)]->shape);
+        // *node_shape is 10
+        LOG(INFO) << "shape of data is " << node_shape;
+        pd.set(0, (int)node_shape);
+        pd.set(2, (int)node_shape); // set weight size here
+        ncnn::Mat weights[1];
+        weights[0].create((int)node_shape);
+        float *temp_array = new float[node_shape];
+        LOG(INFO) << "begin memory copy";
+        memcpy(temp_array, node_data, sizeof(float)*(node_shape));
+        LOG(INFO) << "end memory copy";
+        for (size_t i = 0; i < node_shape; i++) {
+          weights[0][i] = temp_array[i];
+        }
+        void* a = nullptr;
+        auto dim = data_entry_[EntryID(tensor)]->ndim;
+        LOG(INFO) << "ndim of data is " << dim;
+        auto stride = data_entry_[EntryID(tensor)]->strides;
+        LOG(INFO) << "stride of data is " << stride;
+        auto dtype = data_entry_[EntryID(tensor)]->dtype;
+        LOG(INFO) << "dtype of data is " << dtype;
+        auto b = data_entry_[EntryID(tensor)]->byte_offset;
+        LOG(INFO) << "byte offset of data is " << b;
+        op->load_param(pd); // load param/model structure
+        op->load_model(ncnn::ModelBinFromMatArray(weights));
+        op->create_pipeline(opt);
       }
     }
     // pd.set(2, ...) // TODO: set weight size
     layer->op = op;
-    op->load_param(pd); // load param/model structure
-     
+    layer->opt = opt;
   }
   void inner_product_lowlevel(const ncnn::Mat& rgb, ncnn::Mat& out, bool use_bias=false)
   {
