@@ -72,30 +72,42 @@ public:
   
   void Run() override {
     LOG(INFO) << "Run ncnn runtime engine";
+    float* float_node_data;
     for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
       auto nid = input_nodes_[nid_idx];
       if (nodes_[nid].GetOpType() == "input") {
         for (uint32_t eid_idx = 0; eid_idx < nodes_[nid].GetNumOutput(); eid_idx++) {
           uint32_t eid = EntryID(nid, eid_idx);
           void* data = data_entry_[eid]->data;
+          float_node_data = static_cast<float *>(data);
           LOG(INFO) << "data shape is " << *(data_entry_[eid]->shape+1);
           LOG(INFO) << "ndim of data is" << data_entry_[eid]->ndim;
         }
       }
     }
-    ncnn::Mat input(65536);
-    
-    // fill random
-    for (int i = 0; i < input.total(); i++)
-    {
-        input[i] = rand() % 10;
+    ncnn::Mat input(1, 65536);
+    for (size_t i = 0; i < 65536; i++) {
+      input[0, i] = float_node_data[i];
     }
+//    for (int i = 0; i < input.total(); i++)
+//    {
+//        input[i] = rand() % 10;
+//    }
     
     // ncnn::Mat out1;
     // inner_product_lowlevel(input, out1);
     layer_.op->forward(input, layer_.out, layer_.opt);
     printf("Use low level API...\n");
     pretty_print(layer_.out);
+
+    for (size_t i = 0 ; i < outputs_.size(); i++) {
+      uint32_t eid = EntryID(outputs_[i]);
+      void* data = data_entry_[eid]->data;
+      float* temp_p = static_cast<float*>(data);
+      for (size_t ii = 0; ii < 10; ii++) {
+        temp_p[ii] = layer_.out[0, ii];
+      }
+    }
   }
 
 private:
