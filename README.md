@@ -17,6 +17,10 @@
 
 <img src=https://raw.githubusercontent.com/apache/tvm-site/main/images/logo/tvm-logo-small.png width=128/> Open Deep Learning Compiler Stack
 ==============================================
+
+In this branch, I try to explore how to use TVM's BYOC to offload computation to a highly optimized inference engine designed for mobile device - [ncnn](https://github.com/tencent/ncnn).
+The implementation is based on TVM v0.13.0. 
+
 [Documentation](https://tvm.apache.org/docs) |
 [Contributors](CONTRIBUTORS.md) |
 [Community](https://tvm.apache.org/community) |
