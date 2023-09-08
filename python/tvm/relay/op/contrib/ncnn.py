@@ -17,7 +17,63 @@
 # pylint: disable=invalid-name, unused-argument, dangerous-default-value
 """ncnn library supported operators."""
 import tvm
+from tvm.relay import transform
+from tvm.relay.build_module import bind_params_by_name
+from ...dataflow_pattern import is_constant, is_op, wildcard
+from .register import register_pattern_table 
 
+def partition_for_ncnn(mod, params=None):
+    """Partition the graph greedily offloading supported
+    operators to ncnn.
+
+    Parameters
+    ----------
+    mod : Module
+        The module to run passes on.
+    params : Optional[Dict[str, NDArray]]
+        Constant input parameters.
+
+    Returns
+    -------
+    ret : annotated and partitioned module.
+    """
+    if params:
+        mod["main"] = bind_params_by_name(mod["main"], params)
+
+    seq = tvm.transform.Sequential(
+        [
+            transform.InferType(),
+            transform.MergeComposite(ncnn_pattern_table()),
+            transform.AnnotateTarget("ncnn"),
+            transform.PartitionGraph(),
+        ]
+    )
+
+    return seq(mod)
+
+@register_pattern_table("ncnn")
+def ncnn_pattern_table():
+    """Get the ncnn pattern table"""
+    def dense_pattern():
+        """Create a dense (fully-connected) pattern.
+
+        Returns
+        -------
+        pattern : dataflow_pattern.AltPattern
+            Denotes the convolution pattern.
+        """
+        pattern = is_op("nn.dense")(wildcard(), is_constant())
+        pattern = pattern.optional(lambda x: is_op("nn.bias_add")(x, is_constant()))
+        return pattern
+    
+    def check_dense(extractl):
+        """Check conv pattern is supported by ncnn."""
+        return True
+    
+    return [
+        ("ncnn.dense", dense_pattern(), check_dense)
+    ]
+    
 def _register_extern_op_helper(op_name, supported=True):
     """The helper function to indicate that a given operator can be supported by ncnn.
 
