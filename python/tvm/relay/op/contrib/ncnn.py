@@ -67,7 +67,7 @@ def ncnn_pattern_table():
         return pattern
     
     def check_dense(extractl):
-        """Check conv pattern is supported by ncnn."""
+        """Check dense pattern is supported by ncnn."""
         return True
     
     return [
