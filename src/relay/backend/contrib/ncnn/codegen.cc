@@ -29,6 +29,7 @@ public:
     const CallNode* dense = nullptr;
     const CallNode* bias = nullptr;
   };
+
   /*!
    * \brief Visit call nodes and generate appropriate JSON node.
    *

@@ -90,19 +90,14 @@ public:
         }
       }
     }
+    // TODO Replace the 1 here 
     ncnn::Mat input(1, input_shape);
     for (size_t i = 0; i < input_shape; i++) {
       input[0, i] = float_node_data[i];
     }
-//    for (int i = 0; i < input.total(); i++)
-//    {
-//        input[i] = rand() % 10;
-//    }
-    
-    // ncnn::Mat out1;
-    // inner_product_lowlevel(input, out1);
+     
     layer_.op->forward(input, layer_.out, layer_.opt);
-    printf("Use low level API...\n");
+    LOG(INFO) << "Print inside runtime...";
     pretty_print(layer_.out);
 
     for (size_t i = 0 ; i < outputs_.size(); i++) {
@@ -111,7 +106,7 @@ public:
       int output_shape = *(data_entry_[eid]->shape+1);
       LOG(INFO) << "output shape is " << output_shape;
       float* temp_p = static_cast<float*>(data);
-      for (size_t ii = 0; ii < 10; ii++) {
+      for (size_t ii = 0; ii < output_shape; ii++) {
         temp_p[ii] = layer_.out[0, ii];
       }
     }
@@ -214,51 +209,7 @@ private:
     layer->op = op;
     layer->opt = opt;
   }
-  void inner_product_lowlevel(const ncnn::Mat& rgb, ncnn::Mat& out, bool use_bias=false)
-  {
-      ncnn::Option opt;
-      opt.num_threads = 2;
 
-      ncnn::Layer* op = ncnn::create_layer("InnerProduct");
-
-      // set param
-      ncnn::ParamDict pd;
-      pd.set(0, 3);// num_output
-      if (use_bias)
-      {
-        pd.set(1, 1);// use bias_term
-      }
-      else 
-      {
-        pd.set(1, 0);// no bias_term
-      }
-      pd.set(2, 3);// weight_data_size
-
-      op->load_param(pd);
-
-      // set weights
-      ncnn::Mat weights[2];
-      weights[0].create(3);// weight_data
-      weights[1].create(3);// bias data
-
-      for (int i=0; i<3; i++)
-      {
-          weights[0][i] = 1.f / 9;
-          weights[1][i] = 1.f;
-      }
-
-
-      op->load_model(ncnn::ModelBinFromMatArray(weights));
-
-      op->create_pipeline(opt);
-
-      // forward
-      op->forward(rgb, out, opt);
-
-      op->destroy_pipeline(opt);
-
-      delete op;
-  }
   void pretty_print(const ncnn::Mat& m)
   {
       for (int q=0; q<m.c; q++)
