@@ -123,7 +123,11 @@ private:
         found_kernel_node = true;
         auto op_name = node.GetOpName();
         if (op_name == "nn.dense") {
+          LOG(INFO) << "Create InnerProduct layer...";
           CreateInnerProductLayer(&layer_, node);
+        } else if (op_name == "reshape") {
+          LOG(INFO) << "Create Reshape layer...";
+          CreateReshapeLayer(&layer_, node);
         } else {
           LOG(FATAL) << "Unsupported op: " << op_name;
         }
@@ -142,12 +146,48 @@ private:
     ncnn::Mat out;
   };
   
+  /*!
+   * \brief Helper class used to parse information from JSONGraphNode 
+   */
+  void ParseInfoFromJSONGraphNode(const JSONGraphNode& node) {
+    auto op_name = node.GetOpName();
+    LOG(INFO) << "op name is " << op_name;
+    LOG(INFO) << "parse inpputs info...";
+    std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
+    size_t num_inputs = inputs.size();
+    LOG(INFO) << "num inputs for " << op_name << " is " << num_inputs;
+    for (size_t i = 0; i < num_inputs; i++) {
+      auto tensor = inputs[i];
+      JSONGraphNode node = nodes_[tensor.id_];
+      LOG(INFO) << i + 1 << "th input is " << node.GetOpType();
+      if (node.GetOpType() == "input") {
+        auto shape = node.GetOpShape()[0];
+        LOG(INFO) << "ndim of input is " << shape.size();
+        for (size_t ii = 0; ii < shape.size(); ii++) {
+          LOG(INFO) << "shape of " << i + 1 << "th input along dim " 
+            << ii << " is " << shape[ii]; 
+        }
+      }
+    }
+    LOG(INFO) << "parse outputs info...";
+    size_t num_outputs = node.GetNumOutput();
+    LOG(INFO) <<  "num ouputs for " << op_name << " is " << num_outputs;
+    for (size_t i = 0; i < num_outputs; i++) {
+      LOG(INFO) << i + 1 << "th output is " << node.GetOpType();
+      auto shape = node.GetOpShape()[i];
+      for (size_t ii = 0; ii < shape.size(); ii++) {
+        LOG(INFO) << "shape of " << i + 1 << "th output along dim " 
+          << ii << " is " << shape[ii]; 
+      }
+    }
+  }
+
   void CreateInnerProductLayer(CachedLayer* layer, const JSONGraphNode& node) {
     ncnn::Layer* op = ncnn::create_layer("InnerProduct");
     // collect inputs from json representation 
     std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
     size_t num_inputs= inputs.size();
-    LOG(INFO) << "num_inputs parsed from ncnn json: " << num_inputs;
+    LOG(INFO) << "num_inputs for InnerProduct layer parsed from ncnn json: " << num_inputs;
     bool has_bias;
     ICHECK(num_inputs >= 2U && num_inputs <= 3U)
       << "InnerProduct(dense) layer requires 3 inputs with a bias, 2 inputs without.";
@@ -156,6 +196,7 @@ private:
     opt.num_threads = 2; // TODO: how to get num threads to use from tvm
     ncnn::ParamDict pd;
     ncnn::Mat *weights; // TODO: remember to release memory after use here!!!
+
     if (has_bias) {
       pd.set(1, 1); // has bias
       weights = new ncnn::Mat[2];
@@ -225,7 +266,11 @@ private:
     layer->op = op;
     layer->opt = opt;
   }
-
+  
+  void CreateReshapeLayer(CachedLayer* layer, const JSONGraphNode& node) {
+    ParseInfoFromJSONGraphNode(node);
+    ncnn::Layer *op = ncnn::create_layer("Reshape");
+  }
   void pretty_print(const ncnn::Mat& m)
   {
       for (int q=0; q<m.c; q++)
