@@ -71,7 +71,7 @@ private:
 
     // Traverse composite dense function from child to parent
     const auto* current_call = fn->body.as<CallNode>();
-    if (backend::IsOp(current_call, "add")) {
+    if (backend::IsOp(current_call, "nn.bias_add")) {
       nodes.bias = current_call;
       current_call = current_call->args[0].as<CallNode>();
     }

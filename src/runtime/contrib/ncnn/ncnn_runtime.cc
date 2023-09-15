@@ -71,7 +71,7 @@ public:
   }
   
   void Run() override {
-    LOG(INFO) << "Run ncnn runtime engine";
+    // LOG(INFO) << "Run ncnn runtime engine";
     float* float_node_data;
     int input_shape;
     for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
@@ -82,10 +82,6 @@ public:
           void* data = data_entry_[eid]->data;
           float_node_data = static_cast<float *>(data);
           int ndim = data_entry_[eid]->ndim;
-          LOG(INFO) << "ndim of data is " << ndim;
-          for (size_t i = 0; i < ndim; i++) {
-            LOG(INFO) << "input shape along dim " << i << " is " << *(data_entry_[eid]->shape+i);
-          }
           input_shape = *(data_entry_[eid]->shape+1);
         }
       }
@@ -97,14 +93,11 @@ public:
     }
      
     layer_.op->forward(input, layer_.out, layer_.opt);
-    LOG(INFO) << "Print inside runtime...";
-    pretty_print(layer_.out);
 
     for (size_t i = 0 ; i < outputs_.size(); i++) {
       uint32_t eid = EntryID(outputs_[i]);
       void* data = data_entry_[eid]->data;
       int output_shape = *(data_entry_[eid]->shape+1);
-      LOG(INFO) << "output shape is " << output_shape;
       float* temp_p = static_cast<float*>(data);
       for (size_t ii = 0; ii < output_shape; ii++) {
         temp_p[ii] = layer_.out[0, ii];
@@ -162,44 +155,67 @@ private:
     ncnn::Option opt;
     opt.num_threads = 2; // TODO: how to get num threads to use from tvm
     ncnn::ParamDict pd;
+    ncnn::Mat *weights; // TODO: remember to release memory after use here!!!
     if (has_bias) {
       pd.set(1, 1); // has bias
+      weights = new ncnn::Mat[2];
     } else {
       pd.set(1, 0); // has no bias
+      weights = new ncnn::Mat[1];
     }
     // TODO map inputs to weights
     for (size_t i = 0; i < inputs.size(); i++) {
       auto tensor = inputs[i];
       JSONGraphNode node = nodes_[tensor.id_];
       if (node.GetOpType() == "const") {
-        LOG(INFO) << i+1 << " th node is " << "const/weight node";
-        void* node_data = nullptr;
-        node_data = data_entry_[EntryID(tensor)]->data;
-        auto dim = data_entry_[EntryID(tensor)]->ndim;
-        LOG(INFO) << "ndim of data is " << dim;
-        int64_t data_shape[dim];
-        int64_t data_size = 1;
-        for (size_t i = 0; i < dim; i++) {
-          data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
-          LOG(INFO) << "shape of weight along dim "
-            << i << " is " << data_shape[i];
-          data_size *= data_shape[i];
+        if (i == 1) {
+          LOG(INFO) << i + 1 << "th node is " << "fc weight node";
+          void* node_data = nullptr;
+          node_data = data_entry_[EntryID(tensor)]->data;
+          auto dim = data_entry_[EntryID(tensor)]->ndim;
+          LOG(INFO) << "ndim of data is " << dim;
+          int64_t data_shape[dim];
+          int64_t data_size = 1;
+          for (size_t i = 0; i < dim; i++) {
+            data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
+            LOG(INFO) << "shape of weight along dim "
+              << i << " is " << data_shape[i];
+            data_size *= data_shape[i];
+          }
+          // *node_shape is 10
+          pd.set(0, (int)data_shape[0]); // set output shape
+          pd.set(2, (int)data_size); // set weight size here
+          weights[0].create((int)data_size);
+          float* temp_array = static_cast<float *>(node_data);
+          for (size_t ii = 0; ii < data_size; ii++) {
+            weights[0][ii] = temp_array[ii];
+          }
+          auto stride = data_entry_[EntryID(tensor)]->strides;
+          LOG(INFO) << "stride of weight is " << stride;
+          auto dtype = data_entry_[EntryID(tensor)]->dtype;
+          LOG(INFO) << "dtype of weight is " << dtype;
+          auto b = data_entry_[EntryID(tensor)]->byte_offset;
+          LOG(INFO) << "byte offset of weight is " << b;
+        } else if(i == 2) {
+          LOG(INFO) << i + 1 << "th node is " << "fc bias node";
+          void* node_data = nullptr;
+          node_data = data_entry_[EntryID(tensor)]->data;
+          auto dim = data_entry_[EntryID(tensor)]->ndim;
+          LOG(INFO) << "ndim of data is " << dim;
+          int64_t data_shape[dim];
+          int64_t data_size = 1;
+          for (size_t i = 0; i < dim; i++) {
+            data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
+            LOG(INFO) << "shape of weight along dim "
+              << i << " is " << data_shape[i];
+            data_size *= data_shape[i];
+          }
+          weights[1].create((int)data_size);
+          float* temp_array = static_cast<float *>(node_data);
+          for (size_t ii = 0; ii < data_size; ii++) {
+            weights[1][ii] = temp_array[ii];
+          }
         }
-        // *node_shape is 10
-        pd.set(0, (int)data_shape[0]); // set output shape
-        pd.set(2, (int)data_size); // set weight size here
-        ncnn::Mat weights[1];
-        weights[0].create((int)data_size);
-        float* temp_array = static_cast<float *>(node_data);
-        for (size_t i = 0; i < data_size; i++) {
-          weights[0][i] = temp_array[i];
-        }
-        auto stride = data_entry_[EntryID(tensor)]->strides;
-        LOG(INFO) << "stride of weight is " << stride;
-        auto dtype = data_entry_[EntryID(tensor)]->dtype;
-        LOG(INFO) << "dtype of weight is " << dtype;
-        auto b = data_entry_[EntryID(tensor)]->byte_offset;
-        LOG(INFO) << "byte offset of weight is " << b;
         op->load_param(pd); // load param/model structure
         op->load_model(ncnn::ModelBinFromMatArray(weights));
         op->create_pipeline(opt);
