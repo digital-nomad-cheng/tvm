@@ -1,3 +1,19 @@
+
+In this branch, I try to explore how to use TVM's BYOC to offload computation to a highly optimized inference engine designed for mobile device - [ncnn](https://github.com/tencent/ncnn).
+The implementation is based on TVM v0.13.0. 
+
+## Current Progress
+- [x] Core codegen and runtime logic, relay pattern matching done. Successfully parse nn.dense layer from relay and get layer information in runtime. Dispatch the computation to ncnn.
+- [ ] Types of layers support progresss...
+  - [x] Merge nn.dense + nn.bias_add composites
+  - [ ] nn.conv2d
+  - [ ] nn.depthwise_conv2d
+  - [ ] ...
+- [ ] Support dispath subgraph instead of per layer
+- [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn
+- [ ] Performance benchmark
+
+
 <!--- Licensed to the Apache Software Foundation (ASF) under one -->
 <!--- or more contributor license agreements.  See the NOTICE file -->
 <!--- distributed with this work for additional information -->
@@ -18,8 +34,6 @@
 <img src=https://raw.githubusercontent.com/apache/tvm-site/main/images/logo/tvm-logo-small.png width=128/> Open Deep Learning Compiler Stack
 ==============================================
 
-In this branch, I try to explore how to use TVM's BYOC to offload computation to a highly optimized inference engine designed for mobile device - [ncnn](https://github.com/tencent/ncnn).
-The implementation is based on TVM v0.13.0. 
 
 [Documentation](https://tvm.apache.org/docs) |
 [Contributors](CONTRIBUTORS.md) |
