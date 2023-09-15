@@ -216,11 +216,11 @@ private:
             weights[1][ii] = temp_array[ii];
           }
         }
-        op->load_param(pd); // load param/model structure
-        op->load_model(ncnn::ModelBinFromMatArray(weights));
-        op->create_pipeline(opt);
       }
     }
+    op->load_param(pd); // load param/model structure
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+    op->create_pipeline(opt);
     // pd.set(2, ...) // TODO: set weight size
     layer->op = op;
     layer->opt = opt;
