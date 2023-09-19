@@ -6,6 +6,7 @@ The implementation is based on TVM v0.13.0.
 - [x] Core codegen and runtime logic, relay pattern matching done. Successfully parse nn.dense layer from relay and get layer information in runtime. Dispatch the computation to ncnn.
 - [ ] Types of layers support progresss...
   - [x] Merge nn.dense + nn.bias_add composites
+  - [x] reshape layer
   - [ ] Merge activation function with nn.dense
   - [ ] nn.conv2d
   - [ ] nn.depthwise_conv2d
