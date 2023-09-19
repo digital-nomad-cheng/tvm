@@ -93,5 +93,5 @@ def _register_extern_op_helper(op_name, supported=True):
 
     return _func_wrapped 
 
-_register_extern_op_helper("nn.dense")
+# _register_extern_op_helper("nn.dense")
 _register_extern_op_helper("reshape")

@@ -72,35 +72,76 @@ public:
   
   void Run() override {
     // LOG(INFO) << "Run ncnn runtime engine";
-    float* float_node_data;
-    int input_shape;
+    LOG(INFO) << "num inputs when running " << input_nodes_.size();
+    // TODO PRINT ncnn input shape first
     for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
       auto nid = input_nodes_[nid_idx];
       if (nodes_[nid].GetOpType() == "input") {
+        LOG(INFO) << "num output for " << nid_idx << "th node is "
+          << nodes_[nid].GetNumOutput();
         for (uint32_t eid_idx = 0; eid_idx < nodes_[nid].GetNumOutput(); eid_idx++) {
           uint32_t eid = EntryID(nid, eid_idx);
-          void* data = data_entry_[eid]->data;
-          float_node_data = static_cast<float *>(data);
           int ndim = data_entry_[eid]->ndim;
-          input_shape = *(data_entry_[eid]->shape+1);
+          LOG(INFO) << "ndim : " << ndim;
+          if (ndim == 2) { // TODO dense layer for now, remove later
+            layer_.in.create(
+                (int)*(data_entry_[eid]->shape+1),
+                (int)*(data_entry_[eid]->shape) 
+            );
+            for (size_t h = 0; h < layer_.in.h; h++) {
+              for (size_t w = 0; w < layer_.in.w; w++) {
+                layer_.in[h, w] = 
+                  static_cast<float *>(data_entry_[eid]->data)[h * layer_.in.w + w];
+              }
+            }
+          } else if (ndim == 4) { // TODO reshae layer for now, remove later
+            layer_.in.create(
+                (int)*(data_entry_[eid]->shape+3), // 64
+                (int)*(data_entry_[eid]->shape+2), // 64
+                (int)*(data_entry_[eid]->shape+1)  // 16
+                // (int)*(data_entry_[eid]->shape)
+            );
+            LOG(INFO) << "Input from tvm...";
+            for (size_t k = 0; k < 60; k++) {
+              LOG(INFO) << " " << static_cast<float *>(data_entry_[eid]->data)[k];
+            }
+            for (size_t c = 0; c < layer_.in.c; c++) {
+              for (size_t d = 0; d < layer_.in.d; d++) {
+                for (size_t h = 0; h < layer_.in.h; h++) {
+                  for (size_t w = 0; w < layer_.in.w; w++) {
+                    layer_.in.channel(c)[h * layer_.in.w + w] = 
+                      static_cast<float *>(data_entry_[eid]->data)[
+                        c * layer_.in.d * layer_.in.h * layer_.in.w + 
+                        d * layer_.in.h * layer_.in.w + 
+                        h * layer_.in.w + 
+                        w];
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
-    // TODO Replace the 1 here 
-    ncnn::Mat input(1, input_shape);
-    for (size_t i = 0; i < input_shape; i++) {
-      input[0, i] = float_node_data[i];
-    }
-     
-    layer_.op->forward(input, layer_.out, layer_.opt);
+    LOG(INFO) << "ncnn input data...";
+    pretty_print(layer_.in); 
+    layer_.op->forward(layer_.in, layer_.out, layer_.opt);
+    LOG(INFO) << "ncnn output data...";
+    pretty_print(layer_.out);
+    LOG(INFO) << "ncnn output shape: " << 
+      " w " << layer_.out.w << 
+      " h " << layer_.out.h << 
+      " d " << layer_.out.d << 
+      " c " << layer_.out.c;
 
     for (size_t i = 0 ; i < outputs_.size(); i++) {
       uint32_t eid = EntryID(outputs_[i]);
       void* data = data_entry_[eid]->data;
       int output_shape = *(data_entry_[eid]->shape+1);
-      float* temp_p = static_cast<float*>(data);
+      LOG(INFO) << "output shape " << output_shape;
+      float* temp_p = static_cast<float *>(data);
       for (size_t ii = 0; ii < output_shape; ii++) {
-        temp_p[ii] = layer_.out[0, ii];
+        temp_p[ii] = layer_.out.channel(0)[ii]; 
       }
     }
   }
@@ -270,6 +311,16 @@ private:
   void CreateReshapeLayer(CachedLayer* layer, const JSONGraphNode& node) {
     ParseInfoFromJSONGraphNode(node);
     ncnn::Layer *op = ncnn::create_layer("Reshape");
+    ncnn::Option opt;
+    opt.num_threads = 2;
+    ncnn::ParamDict pd;
+    // TODO Replace hardcode with info from JSONGraphNode
+    pd.set(0, 3 * 4 * 5);
+    pd.set(1, 1);
+    op->load_param(pd);
+    op->create_pipeline(opt);
+    layer->op = op;
+    layer->opt = opt;
   }
   void pretty_print(const ncnn::Mat& m)
   {
