@@ -12,7 +12,7 @@ The implementation is based on TVM v0.13.0.
   - [ ] nn.depthwise_conv2d
   - [ ] ...
 - [ ] Support dispath subgraph instead of per layer
-- [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn
+- [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
 - [ ] Performance benchmark
 
 
