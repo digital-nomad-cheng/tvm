@@ -64,9 +64,10 @@ def ncnn_pattern_table():
         """
         pattern = is_op("nn.dense")(wildcard(), is_constant())
         pattern = pattern.optional(lambda x: is_op("nn.bias_add")(x, is_constant()))
+        pattern = pattern.optional(is_op("nn.relu"))
         return pattern
     
-    def check_dense(extractl):
+    def check_dense(extract):
         """Check dense pattern is supported by ncnn."""
         return True
     

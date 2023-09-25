@@ -28,6 +28,7 @@ public:
   struct CompositeDenseNode {
     const CallNode* dense = nullptr;
     const CallNode* bias = nullptr;
+    const CallNode* activation = nullptr; 
   };
 
   /*!
@@ -71,6 +72,10 @@ private:
 
     // Traverse composite dense function from child to parent
     const auto* current_call = fn->body.as<CallNode>();
+    if (backend::IsOp(current_call, "nn.relu")) {
+      nodes.activation = current_call;
+      current_call = current_call->args[0].as<CallNode>();
+    }
     if (backend::IsOp(current_call, "nn.bias_add")) {
       nodes.bias = current_call;
       current_call = current_call->args[0].as<CallNode>();
@@ -102,6 +107,15 @@ private:
     }
     auto json_node = std::make_shared<JSONGraphNode>(name, "kernel", inputs, 1);
     SetCallNodeAttribute(json_node, nodes.dense);
+    if (nodes.activation) {
+      std::vector<std::string> activation_type;
+      if (backend::IsOp(nodes.activation, "nn.relu")) {
+        activation_type = {"relu"};
+      }
+      std::vector<dmlc::any> act_attr;
+      act_attr.emplace_back(activation_type);
+      json_node->SetAttr("activation_type", act_attr);
+    }
     return json_node;
   }
 };

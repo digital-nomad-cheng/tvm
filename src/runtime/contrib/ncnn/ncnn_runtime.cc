@@ -249,6 +249,14 @@ private:
       pd.set(1, 0); // has no bias
       weights = new ncnn::Mat[1];
     }
+    
+    if (node.HasAttr("activation_type")) {
+      std::string activation_type = node.GetAttr<std::vector<std::string>>("activation_type")[0];
+      if (activation_type == std::string("relu")) {
+        // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+        pd.set(9, 1); // set activation type to relu
+      }
+    }
     // TODO map inputs to weights
     for (size_t i = 0; i < inputs.size(); i++) {
       auto tensor = inputs[i];
