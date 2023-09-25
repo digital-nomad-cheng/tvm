@@ -101,10 +101,10 @@ public:
                 (int)*(data_entry_[eid]->shape+1)  // 16
                 // (int)*(data_entry_[eid]->shape)
             );
-            LOG(INFO) << "Input from tvm...";
-            for (size_t k = 0; k < 60; k++) {
-              LOG(INFO) << " " << static_cast<float *>(data_entry_[eid]->data)[k];
-            }
+            //LOG(INFO) << "Input from tvm...";
+            //for (size_t k = 0; k < 60; k++) {
+            //  LOG(INFO) << " " << static_cast<float *>(data_entry_[eid]->data)[k];
+            //}
             for (size_t c = 0; c < layer_.in.c; c++) {
               for (size_t d = 0; d < layer_.in.d; d++) {
                 for (size_t h = 0; h < layer_.in.h; h++) {
@@ -123,16 +123,16 @@ public:
         }
       }
     }
-    LOG(INFO) << "ncnn input data...";
-    pretty_print(layer_.in); 
+    //LOG(INFO) << "ncnn input data...";
+    //pretty_print(layer_.in); 
     layer_.op->forward(layer_.in, layer_.out, layer_.opt);
-    LOG(INFO) << "ncnn output data...";
-    pretty_print(layer_.out);
-    LOG(INFO) << "ncnn output shape: " << 
-      " w " << layer_.out.w << 
-      " h " << layer_.out.h << 
-      " d " << layer_.out.d << 
-      " c " << layer_.out.c;
+    // LOG(INFO) << "ncnn output data...";
+    //pretty_print(layer_.out);
+    //LOG(INFO) << "ncnn output shape: " << 
+    //  " w " << layer_.out.w << 
+    //  " h " << layer_.out.h << 
+    //  " d " << layer_.out.d << 
+    //  " c " << layer_.out.c;
 
     for (size_t i = 0 ; i < outputs_.size(); i++) {
       uint32_t eid = EntryID(outputs_[i]);
@@ -191,9 +191,10 @@ private:
    * \brief Helper class used to parse information from JSONGraphNode 
    */
   void ParseInfoFromJSONGraphNode(const JSONGraphNode& node) {
+    LOG(INFO) << "------------------------------------";
     auto op_name = node.GetOpName();
     LOG(INFO) << "op name is " << op_name;
-    LOG(INFO) << "parse inpputs info...";
+    LOG(INFO) << "parse inputs info...";
     std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
     size_t num_inputs = inputs.size();
     LOG(INFO) << "num inputs for " << op_name << " is " << num_inputs;
@@ -201,7 +202,7 @@ private:
       auto tensor = inputs[i];
       JSONGraphNode node = nodes_[tensor.id_];
       LOG(INFO) << i + 1 << "th input is " << node.GetOpType();
-      if (node.GetOpType() == "input") {
+      if (node.GetOpType() == "input" || node.GetOpType() == "const") { // input
         auto shape = node.GetOpShape()[0];
         LOG(INFO) << "ndim of input is " << shape.size();
         for (size_t ii = 0; ii < shape.size(); ii++) {
@@ -216,14 +217,17 @@ private:
     for (size_t i = 0; i < num_outputs; i++) {
       LOG(INFO) << i + 1 << "th output is " << node.GetOpType();
       auto shape = node.GetOpShape()[i];
+      LOG(INFO) << "ndim of output is " << shape.size();
       for (size_t ii = 0; ii < shape.size(); ii++) {
         LOG(INFO) << "shape of " << i + 1 << "th output along dim " 
           << ii << " is " << shape[ii]; 
       }
     }
+    LOG(INFO) << "------------------------------------";
   }
 
   void CreateInnerProductLayer(CachedLayer* layer, const JSONGraphNode& node) {
+    ParseInfoFromJSONGraphNode(node);
     ncnn::Layer* op = ncnn::create_layer("InnerProduct");
     // collect inputs from json representation 
     std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
@@ -278,7 +282,7 @@ private:
           LOG(INFO) << "dtype of weight is " << dtype;
           auto b = data_entry_[EntryID(tensor)]->byte_offset;
           LOG(INFO) << "byte offset of weight is " << b;
-        } else if(i == 2) {
+        } else if(i == 2) { // nn.dense with bias_add
           LOG(INFO) << i + 1 << "th node is " << "fc bias node";
           void* node_data = nullptr;
           node_data = data_entry_[EntryID(tensor)]->data;
@@ -303,7 +307,6 @@ private:
     op->load_param(pd); // load param/model structure
     op->load_model(ncnn::ModelBinFromMatArray(weights));
     op->create_pipeline(opt);
-    // pd.set(2, ...) // TODO: set weight size
     layer->op = op;
     layer->opt = opt;
   }
@@ -315,7 +318,7 @@ private:
     opt.num_threads = 2;
     ncnn::ParamDict pd;
     // TODO Replace hardcode with info from JSONGraphNode
-    pd.set(0, 3 * 4 * 5);
+    pd.set(0, -1);
     pd.set(1, 1);
     op->load_param(pd);
     op->create_pipeline(opt);
