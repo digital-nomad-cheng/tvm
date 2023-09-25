@@ -7,7 +7,7 @@ The implementation is based on TVM v0.13.0.
 - [ ] Types of layers support progresss...
   - [x] Merge nn.dense + nn.bias_add composites
   - [x] reshape layer
-  - [ ] Merge activation function with nn.dense
+  - [x] Merge activation function with nn.dense, support nn.dense + bias_add + relu for now
   - [ ] nn.conv2d
   - [ ] nn.depthwise_conv2d
   - [ ] ...
