@@ -280,6 +280,7 @@ private:
     
     ncnn::Option opt;
     opt.num_threads = 2;
+    opt.use_packing_layout = false;
     ncnn::ParamDict pd;
     ncnn::Mat weights[1];
     // int weight_size = std::stoi(channels[0]) * std::stoi(kernel_sizes[0]) * std::stoi(kernel_sizes[1]);

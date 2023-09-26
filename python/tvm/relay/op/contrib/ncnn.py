@@ -66,13 +66,29 @@ def ncnn_pattern_table():
         pattern = pattern.optional(lambda x: is_op("nn.bias_add")(x, is_constant()))
         pattern = pattern.optional(is_op("nn.relu"))
         return pattern
-    
+     
     def check_dense(extract):
         """Check dense pattern is supported by ncnn."""
         return True
     
+    def conv_pattern():
+        """Create a conv pattern
+
+        Returns
+        -------
+        pattern : dataflow_pattern.AltPattern
+            Denotes the convolution pattern. 
+        """
+        pattern = is_op("nn.conv2d")(wildcard(), is_constant())
+        return pattern 
+
+    def check_conv2d(extract):
+        """Check conv2d pattern is supported by ncnn"""
+        return True
+
     return [
-        ("ncnn.dense", dense_pattern(), check_dense)
+        ("ncnn.dense", dense_pattern(), check_dense),
+        ("ncnn.conv2d", conv_pattern(), check_conv2d)
     ]
     
 def _register_extern_op_helper(op_name, supported=True):
