@@ -30,7 +30,16 @@ public:
     const CallNode* bias = nullptr;
     const CallNode* activation = nullptr; 
   };
-
+  
+  /*!
+   * \brief A series of operators that form a composite conv2d layer.
+   */
+  struct CompositeConvNode {
+    const CallNode* conv = nullptr;
+    const CallNode* bias = nullptr;
+    const CallNode* activation = nullptr; 
+  };
+  
   /*!
    * \brief Visit call nodes and generate appropriate JSON node.
    *
@@ -52,7 +61,10 @@ public:
     std::shared_ptr<JSONGraphNode> json_node;
     if (name == "ncnn.dense") {
       json_node = CreateCompositeDenseJSONNode(cn);
-    } else {
+    } else if (name == "ncnn.conv2d") {
+      json_node = CreateCompositeConvJSONNode(cn);
+    }
+    else {
       LOG(FATAL) << "Unrecognized NCNN pattern: " << name;
     }
     return AddNode(json_node, GetRef<Expr>(cn));
@@ -60,10 +72,71 @@ public:
 
 private:
   /*!
-   * \brief Extract dense ndoes from a composite function.
+   * \brief Extract convolution ndoes from a composite function.
    * 
    * \param cn The call node of the composite function.
    * \return Extracted composite convolution nodes.
+   */
+  static CompositeConvNode UnpackCompositeConvolution(const CallNode* cn) {
+    CompositeConvNode nodes{};
+    const auto* fn = cn->op.as<FunctionNode>();
+    ICHECK(fn);
+
+    // Traverse composite dense function from child to parent
+    const auto* current_call = fn->body.as<CallNode>();
+    if (backend::IsOp(current_call, "nn.relu")) {
+      nodes.activation = current_call;
+      current_call = current_call->args[0].as<CallNode>();
+    }
+    if (backend::IsOp(current_call, "nn.bias_add")) {
+      nodes.bias = current_call;
+      current_call = current_call->args[0].as<CallNode>();
+    }
+    // Enforce a dense node exists at this point during traversal
+    ICHECK(backend::IsOp(current_call, "nn.conv2d"));
+    nodes.conv = current_call;
+    return nodes;
+  }
+
+   /*!
+   * \brief Create a JSON representation of a composite convolution.
+   *
+   * \param cn The call to be represented.
+   * \return A JSON representation of a specific operator.
+   */
+  std::shared_ptr<JSONGraphNode> CreateCompositeConvJSONNode(const CallNode* cn) {
+    CompositeConvNode nodes = UnpackCompositeConvolution(cn);
+
+    std::string name = "conv2d";
+    std::string name_prefix = "nn";
+
+    // Inputs must be added in the same order they appear in the relay graph.
+    std::vector<JSONGraphNodeEntry> inputs;
+    inputs.push_back(VisitExpr(cn->args[0])[0]);
+    inputs.push_back(VisitExpr(nodes.conv->args[1])[0]);
+    
+    //if (nodes.bias) {
+    //  inputs.push_back(VisitExpr(nodes.bias->args[1])[0]);
+    //}
+    
+    auto json_node = std::make_shared<JSONGraphNode>(name_prefix + "." + name, "kernel", inputs, 1);
+    SetCallNodeAttribute(json_node, nodes.conv);
+
+    //if (nodes.activation) {
+    //  std::vector<std::string> activation_type = {"relu"};
+    //  std::vector<dmlc::any> act_attr;
+    //  act_attr.emplace_back(activation_type);
+    //  json_node->SetAttr("activation_type", act_attr);
+    //}
+    return json_node;
+  }
+
+
+  /*!
+   * \brief Extract dense ndoes from a composite function.
+   * 
+   * \param cn The call node of the composite function.
+   * \return Extracted composite dense nodes.
    */
   static CompositeDenseNode UnpackCompositeDense(const CallNode* cn) {
     CompositeDenseNode nodes{};
