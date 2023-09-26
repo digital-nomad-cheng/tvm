@@ -12,6 +12,7 @@ The implementation is based on TVM v0.13.0.
   - [ ] Merge nn.conv2d + nn.bias_add + nn.relu
   - [ ] nn.depthwise_conv2d
   - [ ] ...
+- [ ] Fallback to layout packing
 - [ ] Support dispath subgraph instead of per layer
 - [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
 - [ ] Performance benchmark
