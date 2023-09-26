@@ -7,8 +7,9 @@ The implementation is based on TVM v0.13.0.
 - [ ] Types of layers support progresss...
   - [x] Merge nn.dense + nn.bias_add composites
   - [x] reshape layer
-  - [x] Merge activation function with nn.dense, support nn.dense + bias_add + relu for now 25/Sep/2023
-  - [x] nn.conv2d 26/Sep/2023
+  - [x] Merge activation function with nn.dense, support nn.dense + bias_add + relu for now - 25/Sep/2023
+  - [x] nn.conv2d - 26/Sep/2023
+  - [ ] Merge nn.conv2d + nn.bias_add + nn.relu
   - [ ] nn.depthwise_conv2d
   - [ ] ...
 - [ ] Support dispath subgraph instead of per layer
