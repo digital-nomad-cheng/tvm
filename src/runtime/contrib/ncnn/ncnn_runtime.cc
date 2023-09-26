@@ -270,7 +270,8 @@ private:
   void CreateConv2dLayer(CachedLayer* layer, const JSONGraphNode& node) {
     ParseInfoFromJSONGraphNode(node);
     std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
-    ICHECK(inputs.size() == 2) << "Currently only support conv2d without bias_add";
+    ICHECK(inputs.size() >= 2U && inputs.size() <= 3U)
+      << "Convolution requires 3 inputs with a bias, 2 inputs without";
     ncnn::Layer* op = ncnn::create_layer("Convolution");
     auto channels = node.GetAttr<std::vector<std::string>>("channels");
     auto kernel_sizes = node.GetAttr<std::vector<std::string>>("kernel_size");
@@ -282,7 +283,7 @@ private:
     opt.num_threads = 2;
     opt.use_packing_layout = false;
     ncnn::ParamDict pd;
-    ncnn::Mat weights[1];
+    ncnn::Mat *weights;
     // int weight_size = std::stoi(channels[0]) * std::stoi(kernel_sizes[0]) * std::stoi(kernel_sizes[1]);
     // weights[0].create(weight_size);
     // TODO deal with edge cases with various sizes in different direction
@@ -291,20 +292,55 @@ private:
     pd.set(2, std::stoi(dilation[0])); // set dilation 
     pd.set(3, std::stoi(strides[0])); // set strides
     pd.set(4, std::stoi(padding[0])); // set padding size
-    pd.set(5, 0); // set bias term
-    // LOG(INFO) << "channels size: " << channels.size() << "channels: " << channels[0];
-//    LOG(INFO) << "padding size: " << padding.size() << "padding[0]" << padding[0];
-//    LOG(INFO) << "kernel_size size: " << kernel_sizes.size();
-
+    if (inputs.size() == 2U) {
+      pd.set(5, 0); // set bias term
+      weights = new ncnn::Mat[1];
+    } else {
+      pd.set(5, 1);
+      weights = new ncnn::Mat[2];
+    }
+    if (node.HasAttr("activation_type")) {
+      std::string activation_type = node.GetAttr<std::vector<std::string>>("activation_type")[0];
+      if (activation_type == std::string("relu")) {
+        // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
+        pd.set(9, 1); // set activation type to relu
+      }
+    }
     // Load weights from tvm into ncnn 
-    for (size_t i = 0; i < inputs.size(); i++) {
-      auto tensor = inputs[i];
-      JSONGraphNode node = nodes_[tensor.id_];
-      if (node.GetOpType() == "const") {
+    auto tensor = inputs[1];
+    JSONGraphNode weight_node = nodes_[tensor.id_];
+    if (weight_node.GetOpType() == "const") {
+      void* node_data = nullptr;
+      node_data = data_entry_[EntryID(tensor)]->data;
+      auto dim = data_entry_[EntryID(tensor)]->ndim;
+      LOG(INFO) << "ndim of conv2d weight data is " << dim;
+      int64_t data_shape[dim];
+      for (size_t ii = 0; ii < dim; ii++) {
+        data_shape[ii] = *(data_entry_[EntryID(tensor)]->shape+ii);
+        LOG(INFO) << "shape of weight along dim "
+          << ii << " is " << data_shape[ii];
+      }
+      int weight_size = 1;
+      for (size_t ii = 0; ii < dim; ii++) {
+        weight_size *= data_shape[ii];
+      }
+      pd.set(6, weight_size);
+      weights[0].create(weight_size);
+
+      float* temp_ptr = static_cast<float *>(node_data);
+      for (size_t ii = 0; ii < weight_size; ii++) {
+        weights[0][ii] = temp_ptr[ii];
+      }
+    }
+    // load bias from tvm into ncnn if it has
+    if (inputs.size() == 3) {
+      auto tensor = inputs[2];
+      JSONGraphNode bias_node = nodes_[tensor.id_];
+      if (weight_node.GetOpType() == "const") {
         void* node_data = nullptr;
         node_data = data_entry_[EntryID(tensor)]->data;
         auto dim = data_entry_[EntryID(tensor)]->ndim;
-        LOG(INFO) << "ndim of data is " << dim;
+        LOG(INFO) << "ndim of conv2d bias data is " << dim;
         int64_t data_shape[dim];
         for (size_t ii = 0; ii < dim; ii++) {
           data_shape[ii] = *(data_entry_[EntryID(tensor)]->shape+ii);
@@ -315,14 +351,12 @@ private:
         for (size_t ii = 0; ii < dim; ii++) {
           weight_size *= data_shape[ii];
         }
-        pd.set(6, weight_size);
-        weights[0].create(weight_size);
-
+        weights[1].create(weight_size);
         float* temp_ptr = static_cast<float *>(node_data);
         for (size_t ii = 0; ii < weight_size; ii++) {
-          weights[0][ii] = temp_ptr[ii];
+          weights[1][ii] = temp_ptr[ii];
         }
-      }
+      }   
     }
     op->load_param(pd);
     op->load_model(ncnn::ModelBinFromMatArray(weights));

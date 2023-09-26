@@ -107,27 +107,28 @@ private:
   std::shared_ptr<JSONGraphNode> CreateCompositeConvJSONNode(const CallNode* cn) {
     CompositeConvNode nodes = UnpackCompositeConvolution(cn);
 
-    std::string name = "conv2d";
-    std::string name_prefix = "nn";
+    std::string name = "nn.conv2d";
 
     // Inputs must be added in the same order they appear in the relay graph.
     std::vector<JSONGraphNodeEntry> inputs;
     inputs.push_back(VisitExpr(cn->args[0])[0]);
     inputs.push_back(VisitExpr(nodes.conv->args[1])[0]);
     
-    //if (nodes.bias) {
-    //  inputs.push_back(VisitExpr(nodes.bias->args[1])[0]);
-    //}
+    if (nodes.bias) {
+      inputs.push_back(VisitExpr(nodes.bias->args[1])[0]);
+    }
     
-    auto json_node = std::make_shared<JSONGraphNode>(name_prefix + "." + name, "kernel", inputs, 1);
+    auto json_node = std::make_shared<JSONGraphNode>(name, "kernel", inputs, 1);
     SetCallNodeAttribute(json_node, nodes.conv);
-
-    //if (nodes.activation) {
-    //  std::vector<std::string> activation_type = {"relu"};
-    //  std::vector<dmlc::any> act_attr;
-    //  act_attr.emplace_back(activation_type);
-    //  json_node->SetAttr("activation_type", act_attr);
-    //}
+    if (nodes.activation) {
+      std::vector<std::string> activation_type;
+      if (backend::IsOp(nodes.activation, "nn.relu")) {
+        activation_type = {"relu"};                   
+      }
+      std::vector<dmlc::any> act_attr;              
+      act_attr.emplace_back(activation_type);      
+      json_node->SetAttr("activation_type", act_attr);     
+    }
     return json_node;
   }
 

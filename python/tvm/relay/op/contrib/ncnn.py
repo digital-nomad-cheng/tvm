@@ -80,6 +80,8 @@ def ncnn_pattern_table():
             Denotes the convolution pattern. 
         """
         pattern = is_op("nn.conv2d")(wildcard(), is_constant())
+        pattern = pattern.optional(lambda x: is_op("nn.bias_add")(x, is_constant()))
+        pattern = pattern.optional(is_op("nn.relu"))
         return pattern 
 
     def check_conv2d(extract):
@@ -111,4 +113,4 @@ def _register_extern_op_helper(op_name, supported=True):
     return _func_wrapped 
 
 # _register_extern_op_helper("nn.dense")
-_register_extern_op_helper("reshape")
+#_register_extern_op_helper("reshape")
