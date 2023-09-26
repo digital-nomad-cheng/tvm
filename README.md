@@ -9,7 +9,7 @@ The implementation is based on TVM v0.13.0.
   - [x] reshape layer
   - [x] Merge activation function with nn.dense, support nn.dense + bias_add + relu for now - 25/Sep/2023
   - [x] nn.conv2d - 26/Sep/2023
-  - [ ] Merge nn.conv2d + nn.bias_add + nn.relu
+  - [x] Merge nn.conv2d + nn.bias_add + nn.relu - 26/Sep/2023
   - [ ] nn.depthwise_conv2d
   - [ ] ...
 - [ ] Fallback to layout packing
