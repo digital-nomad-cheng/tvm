@@ -65,119 +65,67 @@ public:
   void Init(const Array<NDArray>& consts) override {
     ICHECK_EQ(consts.size(), const_idx_.size()) 
       << "The number of input constants must match the number of required.";
-    LOG(INFO) << "Initilize ncnn runtime engine";
     SetupConstants(consts);
     BuildEngine();
   }
-  
+ 
+  /*!
+   * \brief Run ncnn runtime:
+   * 1. copy input from tvm to ncnn 
+   * 2. run inference engine 
+   * 3. copy output from ncnn to tvm 
+   */ 
   void Run() override {
-    LOG(INFO) << "******************************************";
-    LOG(INFO) << "Run ncnn runtime engine";
-    LOG(INFO) << "num inputs when running " << input_nodes_.size();
-    // TODO PRINT ncnn input shape first
     for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
       auto nid = input_nodes_[nid_idx];
+      // copy input from tvm graph node to ncnn::Mat
+      // TODO: optimize memory copy here
       if (nodes_[nid].GetOpType() == "input") {
-        //LOG(INFO) << "num output for " << nid_idx << "th node is "
-        //  << nodes_[nid].GetNumOutput();
         for (uint32_t eid_idx = 0; eid_idx < nodes_[nid].GetNumOutput(); eid_idx++) {
           uint32_t eid = EntryID(nid, eid_idx);
-          int ndim = data_entry_[eid]->ndim;
-          if (ndim == 2) { // TODO dense layer for now, remove later
-            layer_.in.create(
-                (int)*(data_entry_[eid]->shape+1),
-                (int)*(data_entry_[eid]->shape) 
-            );
+          for (size_t c = 0; c < layer_.in.c; c++) {
             for (size_t h = 0; h < layer_.in.h; h++) {
               for (size_t w = 0; w < layer_.in.w; w++) {
-                layer_.in[h, w] = 
-                  static_cast<float *>(data_entry_[eid]->data)[h * layer_.in.w + w];
-              }
-            }
-          } else if (ndim == 4) { // TODO reshae layer for now, remove later
-            layer_.in.create(
-                (int)*(data_entry_[eid]->shape+3), // 64
-                (int)*(data_entry_[eid]->shape+2), // 64
-                (int)*(data_entry_[eid]->shape+1)  // 16
-                // (int)*(data_entry_[eid]->shape)
-            );
-            //LOG(INFO) << "Input from tvm...";
-            //for (size_t k = 0; k < 60; k++) {
-            //  LOG(INFO) << " " << static_cast<float *>(data_entry_[eid]->data)[k];
-            //}
-            for (size_t c = 0; c < layer_.in.c; c++) {
-              for (size_t d = 0; d < layer_.in.d; d++) {
-                for (size_t h = 0; h < layer_.in.h; h++) {
-                  for (size_t w = 0; w < layer_.in.w; w++) {
-                    layer_.in.channel(c)[h * layer_.in.w + w] = 
-                      static_cast<float *>(data_entry_[eid]->data)[
-                        c * layer_.in.d * layer_.in.h * layer_.in.w + 
-                        d * layer_.in.h * layer_.in.w + 
-                        h * layer_.in.w + 
-                        w];
-                  }
-                }
+                layer_.in.channel(c)[h * layer_.in.w + w] = 
+                  static_cast<float *>(data_entry_[eid]->data)[
+                    c * layer_.in.h * layer_.in.w + 
+                    h * layer_.in.w + 
+                    w];
               }
             }
           }
         }
       }
     }
-    //LOG(INFO) << "ncnn input data...";
-    //pretty_print(layer_.in); 
+
     layer_.op->forward(layer_.in, layer_.out, layer_.opt);
-    // LOG(INFO) << "ncnn output data...";
-    //pretty_print(layer_.out);
-    //LOG(INFO) << "ncnn output shape: " << 
-    //  " w " << layer_.out.w << 
-    //  " h " << layer_.out.h << 
-    //  " d " << layer_.out.d << 
-    //  " c " << layer_.out.c;
 
     for (size_t i = 0 ; i < outputs_.size(); i++) {
       uint32_t eid = EntryID(outputs_[i]);
       void* data = data_entry_[eid]->data;
-      int dim = data_entry_[eid]->ndim;
-      for (size_t ii = 0; ii < dim; ii++) {
-        int output_shape = *(data_entry_[eid]->shape+ii);
-        LOG(INFO) << "output shape along dim " << ii << " is: " << output_shape;
-      }
+      int ndim = data_entry_[eid]->ndim;
       float* temp_ptr = static_cast<float *>(data);
-      if (dim == 2) {
-        size_t wdim = *(data_entry_[eid]->shape+1);
-        for (size_t ii = 0; ii < wdim; ii++) {
-          temp_ptr[ii] = layer_.out.channel(0)[ii]; 
-        }
-      } else if (dim == 4) {
-        // TODO: FIXBUG here
-        //LOG(INFO) << "ncnn mat input shape info "
-        //  << " c: " << layer_.in.c
-        //  << " d: " << layer_.in.d 
-        //  << " h: " << layer_.in.h 
-        //  << " w: " << layer_.in.w
-        //  << " cstep: " << layer_.in.cstep;
-        //LOG(INFO) << "ncnn mat output shape info "
-        //  << " c: " << layer_.out.c
-        //  << " d: " << layer_.out.d 
-        //  << " h: " << layer_.out.h 
-        //  << " w: " << layer_.out.w
-        //  << " cstep: " << layer_.out.cstep;
-        size_t wdim = *(data_entry_[eid]->shape+3);
-        size_t hdim = *(data_entry_[eid]->shape+2);
-        size_t cdim = *(data_entry_[eid]->shape+1); 
-        LOG(INFO) << "wdim: " << wdim << " hdim: " << hdim;
-        ncnn::Mat layer_out_unpacked;
-        ncnn::convert_packing(layer_.out, layer_out_unpacked, 1);
-        for (size_t c = 0; c < layer_out_unpacked.c; c++) {
-          for (size_t h = 0; h < layer_out_unpacked.h; h++) {
-            for (size_t w = 0; w < layer_out_unpacked.w; w++) {
-              temp_ptr[c * hdim * wdim + h * wdim + w] = 
-                layer_out_unpacked.channel(c)[h * wdim + w];
-            }
-          } 
-        }
-      } else {
-        LOG(FATAL) << "Unknow dim option";
+      size_t wdim = 1, hdim = 1, cdim = 1;
+      switch (ndim) {
+        case 2:
+          wdim = *(data_entry_[eid]->shape+1);
+          break;
+        case 4:
+          wdim = *(data_entry_[eid]->shape+3);
+          hdim = *(data_entry_[eid]->shape+2);
+          cdim = *(data_entry_[eid]->shape+1);
+          break;
+        default:
+          LOG(FATAL) << "Unknow dim option.";
+          break;
+      }
+      for (size_t c = 0; c < cdim; c++) {
+        for (size_t h = 0; h < hdim; h++) {
+          for (size_t w = 0; w < wdim; w++) {
+            temp_ptr[c * hdim * wdim + h * wdim + w] = 
+              layer_.out.channel(c)[h * wdim + w];
+          }
+        } 
       }
     }
   }
@@ -200,19 +148,17 @@ private:
         found_kernel_node = true;
         auto op_name = node.GetOpName();
         if (op_name == "nn.dense") {
-          LOG(INFO) << "Create InnerProduct layer...";
           CreateInnerProductLayer(&layer_, node);
         } else if (op_name == "nn.conv2d") {
-          LOG(INFO) << "Create Conv2d layer...";
-          CreateConv2dLayer(&layer_,node);
+          CreateConv2dLayer(&layer_, node);
         }
         else if (op_name == "reshape") {
-          LOG(INFO) << "Create Reshape layer...";
           CreateReshapeLayer(&layer_, node);
         } else {
           LOG(FATAL) << "Unsupported op: " << op_name;
         }
       }
+      AllocateInputOutputTensors(&layer_);
     }
   }
   
@@ -223,10 +169,46 @@ private:
   struct CachedLayer {
     ncnn::Layer* op;
     ncnn::Option opt;
+    // !!! only support single input and output for now
     ncnn::Mat in;
     ncnn::Mat out;
   };
   
+  /*!
+   * \brief Preallocate input and output tensors in ncnn::Mat format.
+   */ 
+  void AllocateInputOutputTensors(CachedLayer* layer) {
+    bool found_input_node = false;
+    for (size_t nid_idx = 0; nid_idx < input_nodes_.size(); ++nid_idx) {
+      auto nid = input_nodes_[nid_idx];
+      if (nodes_[nid].GetOpType() == "input") {
+        if (found_input_node) {
+          LOG(FATAL) << "ncnn runtime module only support one input per layer.";
+        }
+        found_input_node = true;
+        auto node = nodes_[nid];
+        auto shape = node.GetOpShape()[0];
+        int ndim = shape.size();
+        int w = 1, h = 1, c = 1;
+        // shape[0] is the batch_size information
+        switch (ndim) {
+          case 2:
+            w = (int)(shape[1]);
+            break;
+          case 4:
+            w = (int)(shape[3]);
+            h = (int)(shape[2]);
+            c = (int)(shape[1]);
+            break;
+          default:
+            LOG(FATAL) << "Unknow input dim option!";
+            break;
+          }
+          layer->in.create(w, h, c);
+      }
+    }
+       
+  }
   /*!
    * \brief Helper class used to parse information from JSONGraphNode 
    */
@@ -284,8 +266,6 @@ private:
     opt.use_packing_layout = false;
     ncnn::ParamDict pd;
     ncnn::Mat *weights;
-    // int weight_size = std::stoi(channels[0]) * std::stoi(kernel_sizes[0]) * std::stoi(kernel_sizes[1]);
-    // weights[0].create(weight_size);
     // TODO deal with edge cases with various sizes in different direction
     pd.set(0, std::stoi(channels[0]));
     pd.set(1, std::stoi(kernel_sizes[0])); // set kernel size
@@ -313,12 +293,9 @@ private:
       void* node_data = nullptr;
       node_data = data_entry_[EntryID(tensor)]->data;
       auto dim = data_entry_[EntryID(tensor)]->ndim;
-      LOG(INFO) << "ndim of conv2d weight data is " << dim;
       int64_t data_shape[dim];
       for (size_t ii = 0; ii < dim; ii++) {
         data_shape[ii] = *(data_entry_[EntryID(tensor)]->shape+ii);
-        LOG(INFO) << "shape of weight along dim "
-          << ii << " is " << data_shape[ii];
       }
       int weight_size = 1;
       for (size_t ii = 0; ii < dim; ii++) {
@@ -340,12 +317,9 @@ private:
         void* node_data = nullptr;
         node_data = data_entry_[EntryID(tensor)]->data;
         auto dim = data_entry_[EntryID(tensor)]->ndim;
-        LOG(INFO) << "ndim of conv2d bias data is " << dim;
         int64_t data_shape[dim];
         for (size_t ii = 0; ii < dim; ii++) {
           data_shape[ii] = *(data_entry_[EntryID(tensor)]->shape+ii);
-          LOG(INFO) << "shape of weight along dim "
-            << ii << " is " << data_shape[ii];
         }
         int weight_size = 1;
         for (size_t ii = 0; ii < dim; ii++) {
@@ -371,7 +345,6 @@ private:
     // collect inputs from json representation 
     std::vector<JSONGraphNodeEntry> inputs = node.GetInputs();
     size_t num_inputs= inputs.size();
-    LOG(INFO) << "num_inputs for InnerProduct layer parsed from ncnn json: " << num_inputs;
     bool has_bias;
     ICHECK(num_inputs >= 2U && num_inputs <= 3U)
       << "InnerProduct(dense) layer requires 3 inputs with a bias, 2 inputs without.";
@@ -396,23 +369,19 @@ private:
         pd.set(9, 1); // set activation type to relu
       }
     }
-    // TODO map inputs to weights
+
     for (size_t i = 0; i < inputs.size(); i++) {
       auto tensor = inputs[i];
       JSONGraphNode node = nodes_[tensor.id_];
       if (node.GetOpType() == "const") {
         if (i == 1) {
-          LOG(INFO) << i + 1 << "th node is " << "fc weight node";
           void* node_data = nullptr;
           node_data = data_entry_[EntryID(tensor)]->data;
           auto dim = data_entry_[EntryID(tensor)]->ndim;
-          LOG(INFO) << "ndim of data is " << dim;
           int64_t data_shape[dim];
           int64_t data_size = 1;
           for (size_t i = 0; i < dim; i++) {
             data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
-            LOG(INFO) << "shape of weight along dim "
-              << i << " is " << data_shape[i];
             data_size *= data_shape[i];
           }
           // *node_shape is 10
@@ -423,24 +392,14 @@ private:
           for (size_t ii = 0; ii < data_size; ii++) {
             weights[0][ii] = temp_array[ii];
           }
-          //auto stride = data_entry_[EntryID(tensor)]->strides;
-          //LOG(INFO) << "stride of weight is " << stride;
-          //auto dtype = data_entry_[EntryID(tensor)]->dtype;
-          //LOG(INFO) << "dtype of weight is " << dtype;
-          //auto b = data_entry_[EntryID(tensor)]->byte_offset;
-          //LOG(INFO) << "byte offset of weight is " << b;
         } else if(i == 2) { // nn.dense with bias_add
-          LOG(INFO) << i + 1 << "th node is " << "fc bias node";
           void* node_data = nullptr;
           node_data = data_entry_[EntryID(tensor)]->data;
           auto dim = data_entry_[EntryID(tensor)]->ndim;
-          LOG(INFO) << "ndim of data is " << dim;
           int64_t data_shape[dim];
           int64_t data_size = 1;
           for (size_t i = 0; i < dim; i++) {
             data_shape[i] = *(data_entry_[EntryID(tensor)]->shape+i);
-            LOG(INFO) << "shape of weight along dim "
-              << i << " is " << data_shape[i];
             data_size *= data_shape[i];
           }
           weights[1].create((int)data_size);
