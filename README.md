@@ -17,7 +17,7 @@ The implementation is based on TVM v0.13.0.
 - [ ] Fallback to layout packing
 - [ ] Support dispath subgraph instead of per layer
 - [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
-- [ ] Performance benchmark
+- [x] Performance benchmark: For AlexNet, on raspberry pi 4B the performance of arm compute lib is 12.455 seconds for image size 227x227, 100 runs, while for ncnn is 8.536 seconds - 31.46% speedup. 6/Oct/2023
 
 
 <!--- Licensed to the Apache Software Foundation (ASF) under one -->
