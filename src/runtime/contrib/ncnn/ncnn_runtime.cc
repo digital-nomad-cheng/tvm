@@ -262,7 +262,7 @@ private:
     auto dilation = node.GetAttr<std::vector<std::string>>("dilation");
     
     ncnn::Option opt;
-    opt.num_threads = 2;
+    
     opt.use_packing_layout = false;
     ncnn::ParamDict pd;
     ncnn::Mat *weights;
@@ -350,7 +350,7 @@ private:
       << "InnerProduct(dense) layer requires 3 inputs with a bias, 2 inputs without.";
     has_bias = num_inputs == 3;
     ncnn::Option opt;
-    opt.num_threads = 2; // TODO: how to get num threads to use from tvm
+     // TODO: how to get num threads to use from tvm
     ncnn::ParamDict pd;
     ncnn::Mat *weights; // TODO: remember to release memory after use here!!!
 
@@ -421,7 +421,7 @@ private:
     ParseInfoFromJSONGraphNode(node);
     ncnn::Layer *op = ncnn::create_layer("Reshape");
     ncnn::Option opt;
-    opt.num_threads = 2;
+    
     ncnn::ParamDict pd;
     // TODO Replace hardcode with info from JSONGraphNode
     pd.set(0, -1);
