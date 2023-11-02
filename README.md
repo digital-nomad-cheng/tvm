@@ -7,14 +7,23 @@ The implementation is based on TVM v0.13.0.
 - [ ] Types of layers support progresss...
   - [x] Merge nn.dense + nn.bias_add composites
   - [x] reshape layer
-  - [ ] Merge activation function with nn.dense
-  - [ ] nn.conv2d
+  - [x] Merge activation function with nn.dense, support nn.dense + bias_add + relu for now - 25/Sep/2023
+  - [x] nn.conv2d - 26/Sep/2023
+  - [x] Merge nn.conv2d + nn.bias_add + nn.relu - 26/Sep/2023
   - [ ] nn.depthwise_conv2d
   - [ ] ...
+- [ ] Fallback to layout packing
 - [ ] Support dispath subgraph instead of per layer
-- [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn
+- [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
 - [ ] Performance benchmark
 
+## How to Use
+1. download repo with prepared Dockerfile: `git clone --recursive https://github.com/digital-nomad-cheng/tvm/ && cd tvm`
+2. build docker container: `docker build . -t ncnn_codegen`
+3. run docker container: `docker run -it ncnn_codegen:latest`
+4. test: `cd ../tvm_project_course/byoc && python alexnet_ncnn_codegen.py`
+5. 
+   ncnn can support x86 CPU. To benchmark with Arm Compute Lib, you need a ARM device for example Raspberry Pi.
 
 <!--- Licensed to the Apache Software Foundation (ASF) under one -->
 <!--- or more contributor license agreements.  See the NOTICE file -->
