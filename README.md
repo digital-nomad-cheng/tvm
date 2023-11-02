@@ -12,10 +12,12 @@ The implementation is based on TVM v0.13.0.
   - [x] Merge nn.conv2d + nn.bias_add + nn.relu - 26/Sep/2023
   - [ ] nn.depthwise_conv2d
   - [ ] ...
+- [x] Reduce memory traffic by allocating input and output tensor at initializing engine time instead of per run. Increase the speed by 20% for AlexNet. 5/Oct
+- [ ] Set thread number based on hardware
 - [ ] Fallback to layout packing
 - [ ] Support dispath subgraph instead of per layer
 - [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
-- [ ] Performance benchmark
+- [x] Performance benchmark: For AlexNet, on raspberry pi 4B the performance of arm compute lib is 12.455 seconds for image size 227x227, 100 runs, while for ncnn is 8.536 seconds - 31.46% speedup. 6/Oct/2023
 
 ## How to Use
 1. download repo with prepared Dockerfile: `git clone --recursive https://github.com/digital-nomad-cheng/tvm/ && cd tvm`
