@@ -18,10 +18,12 @@ The implementation is based on TVM v0.13.0.
 - [ ] Performance benchmark
 
 ## How to Use
-1. `git clone --recursive https://github.com/digital-nomad-cheng/tvm/ && cd tvm`
-2. `docker build . -t ncnn_codegen`
-3. `docker run -it ncnn_codegen:latest`
-4. 
+1. download repo with prepared Dockerfile: `git clone --recursive https://github.com/digital-nomad-cheng/tvm/ && cd tvm`
+2. build docker container: `docker build . -t ncnn_codegen`
+3. run docker container: `docker run -it ncnn_codegen:latest`
+4. test: `cd ../tvm_project_course/byoc && python alexnet_ncnn_codegen.py`
+5. 
+   ncnn can support x86 CPU. To benchmark with Arm Compute Lib, you need a ARM device for example Raspberry Pi.
 
 <!--- Licensed to the Apache Software Foundation (ASF) under one -->
 <!--- or more contributor license agreements.  See the NOTICE file -->
