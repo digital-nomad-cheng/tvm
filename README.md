@@ -17,6 +17,11 @@ The implementation is based on TVM v0.13.0.
 - [ ] Reduce memory traffic when copying weights and tensors from tvm to ncnn, perhaps using tvm as ncnn::Mat's allocator
 - [ ] Performance benchmark
 
+## How to Use
+1. `git clone --recursive https://github.com/digital-nomad-cheng/tvm/ && cd tvm`
+2. `docker build . -t ncnn_codegen`
+3. `docker run -it ncnn_codegen:latest`
+4. 
 
 <!--- Licensed to the Apache Software Foundation (ASF) under one -->
 <!--- or more contributor license agreements.  See the NOTICE file -->
